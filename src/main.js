@@ -10,6 +10,23 @@ let settings = JSON.parse(localStorage.getItem('diveSettings')) || {
   distanceUnit: 'meters' // 'meters' or 'feet'
 };
 
+// Success Banner
+function showBanner(message) {
+  const existing = document.getElementById('success-banner');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'success-banner';
+  banner.className = 'banner';
+  banner.textContent = message;
+  document.body.prepend(banner);
+
+  setTimeout(() => {
+    banner.classList.add('fade-out');
+    banner.addEventListener('animationend', () => banner.remove(), { once: true });
+  }, 4000);
+}
+
 // Unit Conversion Functions
 function convertTemp(celsius, toUnit) {
   if (toUnit === 'fahrenheit') {
@@ -577,7 +594,7 @@ function handleFormSubmit(e) {
       };
     }
     editingDiveId = null;
-    alert('Dive updated successfully! ✨');
+    showBanner('Dive updated successfully! ✨');
   } else {
     // Create new dive
     const newDive = {
@@ -586,7 +603,7 @@ function handleFormSubmit(e) {
       photos: photoFiles
     };
     dives.push(newDive);
-    alert('Dive logged successfully! 🎉');
+    showBanner('Dive logged successfully! 🎉');
   }
 
   saveDives();
