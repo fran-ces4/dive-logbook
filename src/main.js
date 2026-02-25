@@ -5,6 +5,7 @@ let dives = JSON.parse(localStorage.getItem('dives')) || [];
 let currentTab = 'add';
 let photoFiles = [];
 let editingDiveId = null; // Track which dive is being edited
+let timeHorizon = '6months'; // '6months', '1year', 'alltime'
 let settings = JSON.parse(localStorage.getItem('diveSettings')) || {
   tempUnit: 'celsius', // 'celsius' or 'fahrenheit'
   distanceUnit: 'meters' // 'meters' or 'feet'
@@ -300,7 +301,13 @@ function renderStatistics() {
   }
 
   const stats = calculateStats();
-  const monthlyStats = calculateMonthlyStats();
+  const monthlyStats = calculateMonthlyStats(timeHorizon);
+
+  const timeHorizonLabel = {
+    '6months': 'Last 6 Months',
+    '1year': 'Last Year',
+    'alltime': 'All Time'
+  }[timeHorizon];
 
   return `
     <div class="stats-container">
@@ -332,7 +339,14 @@ function renderStatistics() {
       </div>
 
       <div class="chart-container">
-        <div class="chart-title">Dives per Month (Last 6 Months)</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div class="chart-title">Dives per Month (${timeHorizonLabel})</div>
+          <select id="timeHorizonSelect" style="padding: 8px 12px; border-radius: 8px; border: 2px solid var(--light-blue); background: white; color: var(--text-dark); font-size: 0.9em; cursor: pointer;">
+            <option value="6months" ${timeHorizon === '6months' ? 'selected' : ''}>Last 6 Months</option>
+            <option value="1year" ${timeHorizon === '1year' ? 'selected' : ''}>Last Year</option>
+            <option value="alltime" ${timeHorizon === 'alltime' ? 'selected' : ''}>All Time</option>
+          </select>
+        </div>
         <div class="chart-bars">
           ${monthlyStats.map(month => {
             const maxDives = Math.max(...monthlyStats.map(m => m.count), 1);
@@ -361,13 +375,36 @@ function calculateStats() {
 }
 
 // Calculate Monthly Statistics
-function calculateMonthlyStats() {
+function calculateMonthlyStats(horizon = '6months') {
   const months = [];
   const now = new Date();
 
-  for (let i = 5; i >= 0; i--) {
+  let monthsToShow;
+  switch(horizon) {
+    case '6months':
+      monthsToShow = 6;
+      break;
+    case '1year':
+      monthsToShow = 12;
+      break;
+    case 'alltime':
+      // Find the earliest dive
+      if (dives.length === 0) return [];
+      const earliestDive = dives.reduce((earliest, dive) => {
+        return new Date(dive.date) < new Date(earliest.date) ? dive : earliest;
+      });
+      const earliestDate = new Date(earliestDive.date);
+      const monthsDiff = (now.getFullYear() - earliestDate.getFullYear()) * 12 +
+                         (now.getMonth() - earliestDate.getMonth()) + 1;
+      monthsToShow = Math.max(monthsDiff, 1);
+      break;
+    default:
+      monthsToShow = 6;
+  }
+
+  for (let i = monthsToShow - 1; i >= 0; i--) {
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+    const monthName = date.toLocaleDateString('en-US', { month: 'short', year: horizon === 'alltime' ? '2-digit' : undefined });
     const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
     const count = dives.filter(dive => {
@@ -524,6 +561,16 @@ function attachEventListeners() {
       switchTab('settings');
     });
   });
+
+  // Time horizon selector
+  const timeHorizonSelect = document.getElementById('timeHorizonSelect');
+  if (timeHorizonSelect) {
+    timeHorizonSelect.addEventListener('change', (e) => {
+      timeHorizon = e.target.value;
+      renderApp();
+      switchTab('stats');
+    });
+  }
 }
 
 // Switch Tab
